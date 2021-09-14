@@ -294,22 +294,26 @@ function App() {
 
     for (let j = 0; j < 4; j++) {
       canvases.push(
-        <canvas
-          // key={i + "-" + j}
-          style={{ border: "1px solid red" }}
-          id={i + "-" + j}
-        ></canvas>
+        <div
+          style={{
+            border: "1px solid red",
+            maxWidth: 100,
+            maxHeight: 100,
+          }}
+        >
+          <canvas id={i + "-" + j}></canvas>
+        </div>
       );
     }
 
     grids.push(
       <div
-        // key={i}
         style={{
           display: "inline-grid",
           gridTemplate: "1fr 1fr / 1fr 1fr",
+          border: "2px solid lightblue",
+          padding: 5,
           gridGap: 5,
-          border: "2px solid cyan",
         }}
       >
         {canvases}
@@ -321,7 +325,14 @@ function App() {
 
   for (let i = 0; i < 8; i++) {
     borders.push(
-      <canvas style={{ border: "1px solid red" }} id={"b-" + i}></canvas>
+      <canvas
+        style={{
+          border: "1px solid red",
+          maxWidth: 30,
+          maxHeight: 30,
+        }}
+        id={"b-" + i}
+      ></canvas>
     );
   }
 
@@ -416,7 +427,7 @@ function App() {
       <div id="webcam-container"></div>
       <div id="label-container"></div>
 
-      <div style={{ marginTop: 50 }}>
+      <div style={{ marginTop: 50, marginBottom: 50 }}>
         <canvas
           style={{ maxWidth: 360, maxHeight: 360 }}
           id="uploaded"
@@ -424,31 +435,55 @@ function App() {
       </div>
 
       <div>
-        <input type="file" id="img" onChange={onFileInput} />
+        <label
+          htmlFor="img"
+          style={{
+            border: "1px solid black",
+            padding: 8,
+            cursor: loading ? "wait" : "pointer",
+            opacity: loading ? 0.3 : 1,
+          }}
+        >
+          {loading ? "Scanning..." : "Upload glyph"}
+        </label>
+        <input type="file" id="img" onChange={onFileInput} hidden />
         <br />
         <br />
-        {loading ? <div>loading...</div> : <div>Result: 0x{result}</div>}
+        <br />
+        <br />
+        {result && (
+          <div>
+            Scan result:
+            <div> 0x{result}</div>
+          </div>
+        )}
       </div>
 
-      <div>
+      <div
+        style={{
+          margin: "200px auto 0px",
+          opacity: result ? 1 : 0,
+        }}
+      >
+        <div>Parsed:</div>
+        <br />
+        <br />
+
         <div
           style={{
-            marginTop: 50,
-            display: "inline-grid",
-            gridTemplateRows: "1fr 1fr",
-            gridTemplateColumns: "1fr 1fr 1fr 1fr",
-            gridGap: 20,
+            margin: "0 auto",
+            display: "flex",
+            maxWidth: 400,
+            justifyContent: "space-between",
           }}
         >
           {borders}
         </div>
-      </div>
 
-      <div>
         <div
           style={{
             marginTop: 20,
-            paddingBottom: 100,
+            paddingBottom: 20,
             display: "inline-grid",
             gridTemplateRows: "1fr 1fr 1fr",
             gridTemplateColumns: "1fr 1fr 1fr",
