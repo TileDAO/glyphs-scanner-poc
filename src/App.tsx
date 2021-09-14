@@ -32,6 +32,7 @@ const canvasIsBlack = (canvas: HTMLCanvasElement) => {
 
 function App() {
   const [result, setResult] = useState<string>();
+  const [loading, setLoading] = useState<boolean>();
 
   async function onFileInput(v: ChangeEvent<HTMLInputElement>) {
     if (!v.target.files?.length) return;
@@ -325,6 +326,8 @@ function App() {
   }
 
   async function scan() {
+    setLoading(true);
+
     let rotates: string = "";
     let seed: string = "";
     let borderSeeds: string = "";
@@ -395,13 +398,6 @@ function App() {
       seed += newSegment;
 
       if (i > 0) rotates += rotated ? "1" : "0";
-
-      console.log(i, rotated, newSegment, {
-        className0,
-        className1,
-        className2,
-        className3,
-      });
     }
 
     const result =
@@ -411,6 +407,7 @@ function App() {
       parseInt(borderSeeds.slice(4), 2).toString(16) +
       seed;
 
+    setLoading(false);
     setResult(result);
   }
 
@@ -430,14 +427,13 @@ function App() {
         <input type="file" id="img" onChange={onFileInput} />
         <br />
         <br />
-        <div>Result: {result}</div>
+        {loading ? <div>loading...</div> : <div>Result: 0x{result}</div>}
       </div>
 
       <div>
         <div
           style={{
-            paddingTop: 100,
-            paddingBottom: 50,
+            marginTop: 50,
             display: "inline-grid",
             gridTemplateRows: "1fr 1fr",
             gridTemplateColumns: "1fr 1fr 1fr 1fr",
@@ -451,7 +447,7 @@ function App() {
       <div>
         <div
           style={{
-            paddingTop: 50,
+            marginTop: 20,
             paddingBottom: 100,
             display: "inline-grid",
             gridTemplateRows: "1fr 1fr 1fr",
