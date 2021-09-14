@@ -1,10 +1,39 @@
 import "./App.css";
 
 import * as tf from "@tensorflow/tfjs";
-import { ChangeEvent } from "react";
+import { ChangeEvent, useState } from "react";
+import { BigNumber } from "@ethersproject/bignumber";
+
+declare global {
+  interface Window {
+    tmImage: any;
+  }
+}
+
+const URL = "https://teachablemachine.withgoogle.com/models/Lfeu6QBi4/";
+const modelURL = URL + "model.json";
+const metadataURL = URL + "metadata.json";
+
+const canvasIsBlack = (canvas: HTMLCanvasElement) => {
+  // getting image data of canvas
+  const imgData = canvas
+    .getContext("2d")
+    ?.getImageData(0, 0, canvas.width, canvas.height);
+
+  // get sum of r+g+b+a of all pixels
+  const sum = imgData?.data.reduce(function (a, b) {
+    return a + b;
+  }, 0);
+
+  if (sum === undefined) return;
+
+  return sum < 250000;
+};
 
 function App() {
-  function onFileInput(v: ChangeEvent<HTMLInputElement>) {
+  const [result, setResult] = useState<string>();
+
+  async function onFileInput(v: ChangeEvent<HTMLInputElement>) {
     if (!v.target.files?.length) return;
 
     const img = new Image();
@@ -30,6 +59,82 @@ function App() {
 
       const floatTensor = intTensor.div<tf.Tensor<tf.Rank.R4>>(255);
 
+      const resizeTfFromRect = (rect: {
+        w: number;
+        h: number;
+        x: number;
+        y: number;
+      }) =>
+        tf.image.cropAndResize(
+          floatTensor,
+          [
+            [
+              rect.y / size.h,
+              rect.x / size.w,
+              (rect.y + rect.h) / size.h,
+              (rect.x + rect.w) / size.w,
+            ],
+          ],
+          [0],
+          [rect.h, rect.w]
+        );
+
+      // borders
+      const bwh = {
+        w: lineWidth,
+        h: lineWidth,
+      };
+      const borders = [
+        resizeTfFromRect({
+          ...bwh,
+          x: edgeWidth + blockSize,
+          y: lineWidth,
+        }),
+        resizeTfFromRect({
+          ...bwh,
+          x: edgeWidth + blockSize * 2,
+          y: lineWidth,
+        }),
+        resizeTfFromRect({
+          ...bwh,
+          x: edgeWidth + blockSize * 3,
+          y: edgeWidth + blockSize,
+        }),
+        resizeTfFromRect({
+          ...bwh,
+          x: edgeWidth + blockSize * 3,
+          y: edgeWidth + blockSize * 2,
+        }),
+        resizeTfFromRect({
+          ...bwh,
+          x: edgeWidth + blockSize * 2,
+          y: edgeWidth + blockSize * 3,
+        }),
+        resizeTfFromRect({
+          ...bwh,
+          x: edgeWidth + blockSize,
+          y: edgeWidth + blockSize * 3,
+        }),
+        resizeTfFromRect({
+          ...bwh,
+          x: lineWidth,
+          y: edgeWidth + blockSize * 2,
+        }),
+        resizeTfFromRect({
+          ...bwh,
+          x: lineWidth,
+          y: edgeWidth + blockSize,
+        }),
+      ];
+
+      borders.forEach((b, i) =>
+        tf.browser.toPixels(
+          tf.reshape<tf.Rank.R3>(b, [b.shape[1], b.shape[2], 3]),
+          document.getElementById("b-" + i) as HTMLCanvasElement
+        )
+      );
+
+      // grids
       for (let index = 0; index < 9; index++) {
         let rects: Record<
           number,
@@ -140,7 +245,7 @@ function App() {
         }
 
         Object.values(rects).map((rect, i) => {
-          const cropped = tf.image.cropAndResize(
+          let cropped = tf.image.cropAndResize(
             floatTensor,
             [
               [
@@ -154,9 +259,14 @@ function App() {
             [rect.h, rect.w]
           );
 
-          const canvas = document.getElementById(
-            index + "-" + i
-          ) as HTMLCanvasElement;
+          if (i % 4 === 1) {
+            cropped = tf.reverse4d(cropped, [2]);
+          } else if (i % 4 === 2) {
+            cropped = tf.reverse4d(cropped, [1]);
+          } else if (i % 4 === 3) {
+            cropped = tf.image.flipLeftRight(cropped);
+            cropped = tf.reverse4d(cropped, [1]);
+          }
 
           tf.browser.toPixels(
             tf.reshape<tf.Rank.R3>(cropped, [
@@ -164,13 +274,15 @@ function App() {
               cropped.shape[2],
               3,
             ]),
-            canvas
+            document.getElementById(index + "-" + i) as HTMLCanvasElement
           );
         });
       }
 
       const canvas = document.getElementById("uploaded") as HTMLCanvasElement;
       tf.browser.toPixels(tensor, canvas);
+
+      scan();
     };
   }
 
@@ -181,12 +293,17 @@ function App() {
 
     for (let j = 0; j < 4; j++) {
       canvases.push(
-        <canvas style={{ border: "1px solid red" }} id={i + "-" + j}></canvas>
+        <canvas
+          // key={i + "-" + j}
+          style={{ border: "1px solid red" }}
+          id={i + "-" + j}
+        ></canvas>
       );
     }
 
     grids.push(
       <div
+        // key={i}
         style={{
           display: "inline-grid",
           gridTemplate: "1fr 1fr / 1fr 1fr",
@@ -199,27 +316,151 @@ function App() {
     );
   }
 
+  let borders: JSX.Element[] = [];
+
+  for (let i = 0; i < 8; i++) {
+    borders.push(
+      <canvas style={{ border: "1px solid red" }} id={"b-" + i}></canvas>
+    );
+  }
+
+  async function scan() {
+    let rotates: string = "";
+    let seed: string = "";
+    let borderSeeds: string = "";
+
+    const model = await window.tmImage.load(modelURL, metadataURL);
+
+    for (let i = 0; i < 8; i++) {
+      const canvas = document.getElementById("b-" + i) as HTMLCanvasElement;
+      borderSeeds += canvasIsBlack(canvas) ? "1" : 0;
+    }
+
+    for (let i = 0; i < 9; i++) {
+      const intFromClassName = (className: string) =>
+        parseInt(className.slice(1));
+
+      const hexFromInt = (int: number) =>
+        BigNumber.from(int).toHexString().replace("0x0", "").replace("0x", "");
+
+      const readPrediction = (
+        predictions: { className: string; probability: number }[]
+      ) => {
+        const sorted = predictions.sort((a, b) =>
+          a.probability > b.probability ? -1 : 1
+        );
+        const result = sorted[0];
+        return result.className;
+      };
+
+      const className0 = readPrediction(
+        await model.predict(document.getElementById(i + "-0"))
+      );
+      const className1 = readPrediction(
+        await model.predict(document.getElementById(i + "-1"))
+      );
+      const className2 = readPrediction(
+        await model.predict(document.getElementById(i + "-2"))
+      );
+      const className3 = readPrediction(
+        await model.predict(document.getElementById(i + "-3"))
+      );
+
+      const int0 = intFromClassName(className0);
+      const int1 = intFromClassName(className1);
+      const int2 = intFromClassName(className2);
+      const int3 = intFromClassName(className3);
+
+      const rotated = className0.startsWith("b");
+
+      let char0: string;
+      let char1: string;
+      let char2: string;
+      let char3: string;
+
+      if (rotated) {
+        char0 = hexFromInt(int0 + (int1 >= 16 ? 8 : 0));
+        char1 = hexFromInt(int3 + (int2 >= 16 ? 8 : 0));
+        char2 = hexFromInt(int1 % 16);
+        char3 = hexFromInt(int2 % 16);
+      } else {
+        char0 = hexFromInt(int1 + (int0 >= 16 ? 8 : 0));
+        char1 = hexFromInt(int2 + (int3 >= 16 ? 8 : 0));
+        char2 = hexFromInt(int0 % 16);
+        char3 = hexFromInt(int3 % 16);
+      }
+
+      const newSegment = char0 + char1 + char2 + char3;
+
+      seed += newSegment;
+
+      if (i > 0) rotates += rotated ? "1" : "0";
+
+      console.log(i, rotated, newSegment, {
+        className0,
+        className1,
+        className2,
+        className3,
+      });
+    }
+
+    const result =
+      parseInt(rotates.slice(0, 4), 2).toString(16) +
+      parseInt(rotates.slice(4), 2).toString(16) +
+      parseInt(borderSeeds.slice(0, 4), 2).toString(16) +
+      parseInt(borderSeeds.slice(4), 2).toString(16) +
+      seed;
+
+    setResult(result);
+  }
+
   return (
     <div className="App">
+      <div id="webcam-container"></div>
+      <div id="label-container"></div>
+
       <div>
-        <canvas id="uploaded"></canvas>
+        <canvas
+          style={{ maxWidth: 360, maxHeight: 360 }}
+          id="uploaded"
+        ></canvas>
       </div>
 
       <div>
         <input type="file" id="img" onChange={onFileInput} />
+        <br />
+        <br />
+        <div>Result: {result}</div>
       </div>
 
-      <div
-        style={{
-          paddingTop: 100,
-          paddingBottom: 100,
-          display: "inline-grid",
-          gridTemplateRows: "1fr 1fr 1fr",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gridGap: 20,
-        }}
-      >
-        {grids}
+      <div>
+        <div
+          style={{
+            paddingTop: 100,
+            paddingBottom: 50,
+            display: "inline-grid",
+            gridTemplateRows: "1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr",
+            gridGap: 20,
+          }}
+        >
+          {borders}
+        </div>
+      </div>
+
+      <div>
+        <div
+          style={{
+            paddingTop: 50,
+            paddingBottom: 100,
+            display: "inline-grid",
+            gridTemplateRows: "1fr 1fr 1fr",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gridGap: 20,
+          }}
+        >
+          {grids}
+        </div>
       </div>
     </div>
   );
