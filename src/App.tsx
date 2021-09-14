@@ -311,7 +311,7 @@ function App() {
         style={{
           display: "inline-grid",
           gridTemplate: "1fr 1fr / 1fr 1fr",
-          border: "2px solid lightblue",
+          border: "2px solid cyan",
           padding: 5,
           gridGap: 5,
         }}
@@ -438,7 +438,7 @@ function App() {
         <label
           htmlFor="img"
           style={{
-            border: "1px solid black",
+            border: "1px solid white",
             padding: 8,
             cursor: loading ? "wait" : "pointer",
             opacity: loading ? 0.3 : 1,
