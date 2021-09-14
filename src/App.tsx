@@ -444,7 +444,7 @@ function App() {
             opacity: loading ? 0.3 : 1,
           }}
         >
-          {loading ? "Scanning..." : "Upload glyph"}
+          {loading ? "Scanning..." : "Upload glyph to scan"}
         </label>
         <input type="file" id="img" onChange={onFileInput} hidden />
         <br />
