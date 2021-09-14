@@ -416,7 +416,7 @@ function App() {
       <div id="webcam-container"></div>
       <div id="label-container"></div>
 
-      <div>
+      <div style={{ marginTop: 50 }}>
         <canvas
           style={{ maxWidth: 360, maxHeight: 360 }}
           id="uploaded"
