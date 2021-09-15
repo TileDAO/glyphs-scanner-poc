@@ -448,7 +448,7 @@ function App() {
         </label>
         <div style={{ marginTop: 20 }}>
           <a
-            href="https://glyphs-factory.on.fleek.co"
+            href="https://glyph-generator.on.fleek.co"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "white", opacity: 0.6 }}
