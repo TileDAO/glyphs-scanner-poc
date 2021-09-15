@@ -444,8 +444,18 @@ function App() {
             opacity: loading ? 0.3 : 1,
           }}
         >
-          {loading ? "Scanning..." : "Upload glyph to scan"}
+          {loading ? "Scanning..." : "Upload QRT to scan"}
         </label>
+        <div style={{ marginTop: 20 }}>
+          <a
+            href="https://glyphs-factory.on.fleek.co"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "white", opacity: 0.6 }}
+          >
+            QRT generator
+          </a>
+        </div>
         <input type="file" id="img" onChange={onFileInput} hidden />
         <br />
         <br />
